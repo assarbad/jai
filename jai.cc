@@ -344,14 +344,27 @@ Config::make_home_overlay()
   restore.reset();
 
   Fd fsfd = xfsopen("overlay", cat("jai-", sb).c_str());
-  auto xsetfd = [&](const char *param, int fd) {
-    if (fsconfig(*fsfd, FSCONFIG_SET_FD, param, nullptr, fd))
-      syserr("fsconfig(FSCONFIG_SET_FD, \"{}\")", param);
-  };
-  xsetfd("lowerdir+", home());
-  xsetfd("upperdir", *changes);
-  xsetfd("workdir", *work);
-  Fd mnt = make_mount(*fsfd);
+  try {
+    auto xsetfd = [&](const char *param, int fd) {
+      if (fsconfig(*fsfd, FSCONFIG_SET_FD, param, nullptr, fd))
+        syserr("fsconfig(FSCONFIG_SET_FD, \"{}\")", param);
+    };
+    xsetfd("lowerdir+", home());
+    xsetfd("upperdir", *changes);
+    xsetfd("workdir", *work);
+  } catch (...) {
+    std::println("overlayfs requires Linux 6.13 for modern mount API");
+    throw;
+  }
+  Fd mnt;
+  try {
+    mnt = make_mount(*fsfd);
+  } catch (...) {
+    std::println("possible unsupported file system type for {}\n"
+                 "try relocating storage to local disk with --storage",
+                 fdpath(*changes));
+    throw;
+  }
 
   xmnt_move(*mnt, *sandboxed_home);
   restore = asuser();
