@@ -4,6 +4,8 @@
 .cache
 .deps
 .dirstamp
+/.zig-cache/
+/zig-out/
 /aclocal.m4
 /autom4te.cache/
 /config.h
